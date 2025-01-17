@@ -1,34 +1,48 @@
 import { Router } from "express";
-import { changeCurrentPassword, forgotPassword, getCurrentUser, resetPassword, signin, signout, signup, updateUserDetails, verifyUser } from '../controllers/user.controller.js'
+import {
+    changeCurrentPassword,
+    forgotPassword,
+    getCurrentUser,
+    resetPassword,
+    signin,
+    signout,
+    signup,
+    updateUserDetails,
+    verifyUser,
+    getUserDetails
+} from '../controllers/user.controller.js';
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.route("/singup")
-    .post(signup)
+router.route("/signup")
+    .post(signup);
 
 router.route("/verify-user/:token")
-    .put(verifyUser)
+    .put(verifyUser);
 
 router.route("/login-owner")
-    .post(signin)
+    .post(signin);
 
 router.route("/logout")
-    .get(verifyJWT, signout)
+    .get(verifyJWT, signout);
 
 router.route("/current-user")
-    .get(verifyJWT, getCurrentUser)
+    .get(verifyJWT, getCurrentUser);
 
 router.route("/change-password")
-    .put(verifyJWT, changeCurrentPassword)
+    .put(verifyJWT, changeCurrentPassword);
 
 router.route("/update-profile")
-    .put(verifyJWT,updateUserDetails);
+    .put(verifyJWT, updateUserDetails);
 
 router.route("/forgot-password")
-    .post(forgotPassword)
+    .post(forgotPassword);
 
 router.route("/reset-password/:token")
-    .put(resetPassword)
+    .put(resetPassword);
 
-export default router
+router.route("/user/:id")
+    .get(verifyJWT, getUserDetails);
+
+export default router;

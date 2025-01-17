@@ -5,64 +5,69 @@ import { USER_ROLES } from "../constants.js";
 import crypto from "crypto";
 
 const userSchema = new mongoose.Schema(
-  {
-    firstName: { 
-        type: String, 
-        required: true, 
-        trim: true 
+    {
+        firstName: { 
+            type: String, 
+            required: true, 
+            trim: true 
+        },
+        lastName: { 
+            type: String, 
+            required: true, 
+            trim: true 
+        },
+        email: {
+            type: String,
+            required: true,
+            unique: true,
+            trim: true,
+            lowercase: true,
+        },
+        contactNumber: { 
+            type: String, 
+            required: true, 
+            unique: true 
+        },
+        password: { 
+            type: String, 
+            required: true 
+        },
+        role: {
+            type: String,
+            enum: USER_ROLES,
+            default: USER_ROLES[0],
+        },
+        designation: { 
+            type: String 
+        },
+        linkedInUrl: {
+            type: String,
+            match: [/^https?:\/\/(www\.)?linkedin\.com\/.*$/, "Invalid LinkedIn URL"],
+        },
+        isUserVerified: {
+            type: Boolean,
+            default: false
+        },
+        verificationToken: { 
+            type: String 
+        },
+        verificationOTP: { 
+            type: String 
+        },
+        resetPasswordToken: { 
+            type: String 
+        },
+        resetPasswordExpire: { 
+            type: Date 
+        },
     },
-    lastName: { 
-        type: String, 
-        required: true, 
-        trim: true 
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      lowercase: true,
-    },
-    contactNumber: { 
-        type: String, 
-        required: true, 
-        unique: true 
-    },
-    password: { 
-        type: String, 
-        required: true 
-    },
-    role: {
-      type: String,
-      enum: USER_ROLES,
-      default: USER_ROLES[0],
-    },
-    designation: { 
-        type: String 
-    },
-    linkedInUrl: {
-      type: String,
-      match: [/^https?:\/\/(www\.)?linkedin\.com\/.*$/, "Invalid LinkedIn URL"],
-    },
-    isUserVerified: {
-        type: Boolean,
-        default: false
-    },
-    verificationToken: { 
-        type: String 
-    },
-    verificationOTP: { 
-        type: String 
-    },
-    resetPasswordToken: { 
-        type: String 
-    },
-    resetPasswordExpire: { 
-        type: Date 
-    },
-  },
-  { timestamps: true }
+    { 
+        timestamps: true,
+        collection: 'users'  // Explicitly set collection name
+    }
 );
+
+// Rest of your schema methods remain the same...
 
 userSchema.pre("save", async function(next){
     if(!this.isModified("password")) return next();
