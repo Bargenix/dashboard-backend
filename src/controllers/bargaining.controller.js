@@ -223,9 +223,9 @@ export const setBargainingByProduct = asyncHandler(async (req, res, next) => {
 export const getBargainInfo = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const product = await BargainingDetails.findOne({productId: id})
+  let product = {};
 
-  if(!product) return next(new ApiError(404, "Product not available to bargain"));
+  product = await BargainingDetails.findOne({productId: id})
 
   res.status(200).json(
     new ApiResponse(200,{product},"Product avaiable to bargain")
