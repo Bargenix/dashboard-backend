@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { setBargainingByCategory, setBargainingByProduct, setBargainingToAllProducts } from "../controllers/bargaining.controller.js";
+import { getBargainInfo, setBargainingByCategory, setBargainingByProduct, setBargainingToAllProducts } from "../controllers/bargaining.controller.js";
 
 const router = Router();
 
@@ -12,5 +12,8 @@ router.route('/set-all-products')
 
 router.route('/set-by-product')
     .post(verifyJWT,setBargainingByProduct)
+
+router.route('/bargain-info/:id')
+    .get(getBargainInfo)
 
 export default router

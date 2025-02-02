@@ -219,3 +219,15 @@ export const setBargainingByProduct = asyncHandler(async (req, res, next) => {
       return next(new ApiError(500, `Error fetching or processing data: ${error.message}`));
     }
   });
+
+export const getBargainInfo = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  const product = await BargainingDetails.findOne({productId: id})
+
+  if(!product) return next(new ApiError(404, "Product not available to bargain"));
+
+  res.status(200).json(
+    new ApiResponse(200,{product},"Product avaiable to bargain")
+  )
+})
