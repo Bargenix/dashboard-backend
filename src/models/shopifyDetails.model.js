@@ -2,25 +2,25 @@ import mongoose from 'mongoose';
 
 const shopifyDetailsSchema = new mongoose.Schema(
   {
-    accessToken: { 
-        type: String, 
-        required: true, 
-        trim: true 
+    accessToken: {
+      type: String,
+      required: true,
+      trim: true
     },
     shopifyShopName: {
-        type: String,
-        required: true,
-        trim: true
+      type: String,
+      required: true,
+      trim: true
     },
     apiVersion: {
       type: String,
       required: true
     },
-    userId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User', 
-        required: true 
-    }, 
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
   }
 );
 
