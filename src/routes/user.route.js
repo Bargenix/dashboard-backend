@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { changeCurrentPassword, forgotPassword, getCurrentUser, resetPassword, signin, signout, signup, updateUserDetails, verifyUser } from '../controllers/user.controller.js'
+import { changeCurrentPassword, forgotPassword, getAllUsers, getCurrentUser, resetPassword, signin, updateUserRole, signout, signup, updateUserDetails, verifyUser } from '../controllers/user.controller.js'
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-
+import { getCompanyByUserId } from '../controllers/company.controller.js'
 const router = Router();
 
 router.route("/signup")
@@ -23,12 +23,16 @@ router.route("/change-password")
     .put(verifyJWT, changeCurrentPassword)
 
 router.route("/update-profile")
-    .put(verifyJWT,updateUserDetails);
+    .put(verifyJWT, updateUserDetails);
 
 router.route("/forgot-password")
     .post(forgotPassword)
 
 router.route("/reset-password/:token")
     .put(resetPassword)
+
+router.get('/getUser', getAllUsers);
+router.get('/companies/:userId', getCompanyByUserId);
+
 
 export default router

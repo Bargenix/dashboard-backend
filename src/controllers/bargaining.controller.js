@@ -7,7 +7,32 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 import axios from "axios"
 
+export const deactivateAllProducts = asyncHandler(async (req, res, next) => {
+  const { reason } = req.body;
 
+  if (!reason) {
+    return next(new ApiError(400, "Please provide reason"));
+  }
+
+  const shopify = await ShopifyDetails.findOne({ userId: req.user._id });
+  if (!shopify) return next(new ApiError(404, "Shopify Access is not provided"));
+
+  await BargainingDetails.updateMany(
+    { userId: req.user._id },
+    {
+      $set: {
+        isActive: false,
+        deactivationReason: reason,
+        deactivatedAt: new Date(),
+        minPrice: 0
+      }
+    }
+  );
+
+  res.status(200).json(
+    new ApiResponse(200, { message: "All products deactivated successfully" })
+  );
+});
 
 export const deactivateByCategory = asyncHandler(async (req, res, next) => {
   const { category, reason } = req.body;
