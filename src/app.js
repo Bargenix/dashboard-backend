@@ -67,6 +67,41 @@ app.get('/auth/callback', async (req, res) => {
     }
 });
 
+app.post('/sendData', async (req, res) => {
+    let payload = req.body;
+    console.log("Received payload:", payload);
+    const shopifyCreds ={
+        accessToken : "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",
+        shopifyShopName : "bargenix-3",
+        apiVersion : "2025-01"
+    }
+
+    payload = {...payload,...shopifyCreds}
+    try {
+
+        const response = await fetch('https://7cc1-103-200-80-228.ngrok-free.app/api/shopify-request/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const responseData = await response.json();
+        console.log('Bargain data stored successfully:', responseData);
+        
+        // Respond to client with success
+        const allDetails = {...responseData,...shopifyCreds}
+        res.json({ receivedData: allDetails});
+
+    } catch (error) {
+        console.error('Error storing bargain data:', error);
+
+        // Send error response
+        res.status(500).json({ error: 'Failed to send data' });
+    }
+});
+
 //Routes
 import userRouter from "./routes/user.route.js"
 import shopifyRouter from "./routes/shopify.route.js"

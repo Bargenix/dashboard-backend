@@ -17,8 +17,8 @@ const bargainingDetailsSchema = new mongoose.Schema(
         required: true, 
         min: 0 
     },
-    isAvailable: {
-        type: Boolean
+    isActive:{
+        type:Boolean
     },
     userId: { 
         type: mongoose.Schema.Types.ObjectId, 
