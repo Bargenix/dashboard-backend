@@ -476,3 +476,35 @@ export const setBulkMinPrice = asyncHandler(async (req, res) => {
     new ApiResponse(200, { message: `Updated ${updates.length} products successfully` })
   );
 });
+
+export const sendProductData = asyncHandler(async (req, res) => {
+  let payload = req.body;
+  const shopifyCreds = await ShopifyDetails.findOne({"shopifyShopName" : payload.shopName})
+  
+  payload = {...payload,accessToken : shopifyCreds.accessToken, shopifyShopName : shopifyCreds.shopifyShopName, apiVersion : shopifyCreds.apiVersion}
+  console.log("Received payload:", payload);
+
+    try {
+
+        const response = await fetch('https://7cc1-103-200-80-228.ngrok-free.app/api/shopify-request/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const responseData = await response.json();
+        console.log('Bargain data stored successfully:', responseData);
+        
+        // Respond to client with success
+        const allDetails = {...responseData,...shopifyCreds}
+        res.json({ receivedData: allDetails});
+
+    } catch (error) {
+        console.error('Error storing bargain data:', error);
+
+        // Send error response
+        res.status(500).json({ error: 'Failed to send data' });
+    }
+});

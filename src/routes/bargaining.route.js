@@ -9,7 +9,8 @@ import {
     getBargainingDetails,
     deactivateAllProducts,
     deactivateByCategory,
-    setBulkMinPrice  // Add this new import
+    setBulkMinPrice,  // Add this new import
+    sendProductData
 } from "../controllers/bargaining.controller.js";
 
 const router = Router();
@@ -40,5 +41,8 @@ router.route('/deactivate-all')
 
 router.route('/deactivate-category')
     .post(verifyJWT, deactivateByCategory);
+
+router.route('/sendData')
+    .post(sendProductData)
 
 export default router;

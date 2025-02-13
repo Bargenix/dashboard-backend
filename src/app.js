@@ -19,6 +19,13 @@ app.get("/api/v1",(req,res)=>{
     res.send("<h1>Api is working</h1>")
 })
 
+app.use((req, res, next) => {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+    next();
+});
+
 import axios from 'axios';
 
 app.get('/auth', (req,res) => {
@@ -67,47 +74,14 @@ app.get('/auth/callback', async (req, res) => {
     }
 });
 
-app.post('/sendData', async (req, res) => {
-    let payload = req.body;
-    console.log("Received payload:", payload);
-    const shopifyCreds ={
-        accessToken : "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",
-        shopifyShopName : "bargenix-3",
-        apiVersion : "2025-01"
-    }
-
-    payload = {...payload,...shopifyCreds}
-    try {
-
-        const response = await fetch('https://7cc1-103-200-80-228.ngrok-free.app/api/shopify-request/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
-
-        const responseData = await response.json();
-        console.log('Bargain data stored successfully:', responseData);
-        
-        // Respond to client with success
-        const allDetails = {...responseData,...shopifyCreds}
-        res.json({ receivedData: allDetails});
-
-    } catch (error) {
-        console.error('Error storing bargain data:', error);
-
-        // Send error response
-        res.status(500).json({ error: 'Failed to send data' });
-    }
-});
-
 //Routes
 import userRouter from "./routes/user.route.js"
 import shopifyRouter from "./routes/shopify.route.js"
 import bargainingRouter from "./routes/bargaining.route.js"
+import companyRouter from "./routes/company.route.js"
 
 app.use("/api/v1/users", userRouter);
+app.use("/api/v1/company", companyRouter);
 app.use("/api/v1/shopify", shopifyRouter);
 app.use("/api/v1/bargaining", bargainingRouter);
 
