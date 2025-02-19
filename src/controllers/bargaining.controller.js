@@ -538,6 +538,18 @@ export const requestForBargain = asyncHandler(async (req,res,next) => {
   }
 })
 
+export const getBargainInfo = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  let product = {};
+
+  product = await BargainingDetails.findOne({productId: id})
+
+  res.status(200).json(
+    new ApiResponse(200,{product},"Product avaiable to bargain")
+  )
+})
+
 export const getBargainRequestsByShop = asyncHandler(async (req, res, next) => {
   const { shopName } = req.body;
 

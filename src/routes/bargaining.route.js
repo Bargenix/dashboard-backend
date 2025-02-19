@@ -13,7 +13,8 @@ import {
     sendProductData,
     requestForBargain,
     getBargainRequestsByShop,
-    markAsRead
+    markAsRead,
+    getBargainInfo
 } from "../controllers/bargaining.controller.js";
 
 const router = Router();
@@ -44,6 +45,9 @@ router.route('/deactivate-all')
 
 router.route('/deactivate-category')
     .post(verifyJWT, deactivateByCategory);
+
+router.route('/bargain-info/:id')
+    .get(getBargainInfo)
 
 router.route('/sendData')
     .post(sendProductData)
