@@ -10,7 +10,10 @@ import {
     deactivateAllProducts,
     deactivateByCategory,
     setBulkMinPrice,  // Add this new import
-    sendProductData
+    sendProductData,
+    requestForBargain,
+    getBargainRequestsByShop,
+    markAsRead
 } from "../controllers/bargaining.controller.js";
 
 const router = Router();
@@ -44,5 +47,14 @@ router.route('/deactivate-category')
 
 router.route('/sendData')
     .post(sendProductData)
+
+router.route('/request-bargain')
+    .post(requestForBargain)
+
+router.route('/get-bargain-request')
+    .post( getBargainRequestsByShop)
+
+router.route('/request-read/:id')
+    .put( markAsRead)
 
 export default router;

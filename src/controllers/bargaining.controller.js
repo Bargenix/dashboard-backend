@@ -1,5 +1,6 @@
 import { BARGAIN_BEHAVIOUR } from "../constants.js";
 import { BargainingDetails } from "../models/bargainingDetails.model.js";
+import { RequestBargaining } from "../models/requestBargaining.model.js";
 import { ShopifyDetails } from "../models/shopifyDetails.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
@@ -427,8 +428,6 @@ export const deleteBargaining = asyncHandler(async (req, res, next) => {
   }
 });
 
-
-
 export const getBargainingDetails = async (req, res) => {
   try {
     const bargainingDetails = await BargainingDetails.find({}, 'productId minPrice behavior isAvailable isActive');
@@ -445,7 +444,6 @@ export const getBargainingDetails = async (req, res) => {
     });
   }
 };
-
 
 export const setBulkMinPrice = asyncHandler(async (req, res) => {
   const { updates } = req.body;
@@ -507,4 +505,86 @@ export const sendProductData = asyncHandler(async (req, res) => {
         // Send error response
         res.status(500).json({ error: 'Failed to send data' });
     }
+});
+
+export const requestForBargain = asyncHandler(async (req,res,next) => {
+  const { productTitle, variantPrice, customerEmail, shopName, variantTitle, variantId } = req.body;
+
+  if (!productTitle || !variantPrice || !customerEmail || !shopName || !variantTitle) {
+    res.status(400);
+    throw new Error('All fields are required');
+  }
+
+  // If variantTitle starts with "Default Title", replace it with productTitle
+  const finalVariantTitle = variantTitle.startsWith('Default Title') ? productTitle : variantTitle;
+
+  try {
+    const newBargainRequest = await RequestBargaining.create({
+      productName: finalVariantTitle,
+      productId: variantId,
+      productPrice: variantPrice,
+      customerEmail,
+      shopName
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Bargain request submitted successfully',
+      data: newBargainRequest,
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error('Internal Server Error');
+  }
+})
+
+export const getBargainRequestsByShop = asyncHandler(async (req, res, next) => {
+  const { shopName } = req.body;
+
+  if (!shopName) {
+    res.status(400);
+    throw new Error('Shop name is required');
+  }
+
+  try {
+    const bargainRequests = await RequestBargaining.find({ shopName, markAsRead: false });
+    res.status(200).json({
+      success: true,
+      data: bargainRequests,
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error('Internal Server Error');
+  }
+});
+
+export const markAsRead = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  if (!id) {
+    res.status(400);
+    throw new Error('Request ID is required');
+  }
+
+  try {
+    const updatedRequest = await RequestBargaining.findByIdAndUpdate(
+      id,
+      { markAsRead: true },
+      { new: true }
+    );
+
+    if (!updatedRequest) {
+      res.status(404);
+      throw new Error('Bargain request not found');
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Bargain request marked as read',
+      data: updatedRequest,
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error('Internal Server Error');
+  }
 });
