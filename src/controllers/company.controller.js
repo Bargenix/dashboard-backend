@@ -8,7 +8,7 @@ const getCompanyByUserId = asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
   // Fetch company details from the database
-  const company = await CompanyDetails.findOne({ userId }).populate('userId', 'firstName lastName email contactNumber');
+  const company = await CompanyDetails.findOne({ userId }).populate('userId', 'firstName lastName email contactNumber linkedInUrl designation');
 
   if (!company) {
     throw new ApiError(404, "Company not found");

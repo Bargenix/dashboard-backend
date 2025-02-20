@@ -551,7 +551,6 @@ export const getBargainInfo = asyncHandler(async (req, res, next) => {
 })
 
 export const getBargainRequestsByShop = asyncHandler(async (req, res, next) => {
-  const { shopName } = req.body;
 
   if (!shopName) {
     res.status(400);
