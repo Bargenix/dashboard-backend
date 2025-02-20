@@ -28,7 +28,7 @@ router.route("/update-profile")
 router.route("/forgot-password")
     .post(forgotPassword)
 
-router.route("/reset-password/:token")
+router.route("/reset-password")
     .put(resetPassword)
 
 router.get('/getUser', getAllUsers);

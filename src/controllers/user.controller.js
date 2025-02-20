@@ -235,8 +235,8 @@ export const changeCurrentPassword = asyncHandler(async (req, res, next) => {
         throw new ApiError(400, "Please provide both old and new password");
     }
 
-    const user = await User.findById(req.user._id);
-
+    const user = await User.findById(req.user._id)
+    
     const isPasswordMatched = await user.isPasswordCorrect(oldPassword);
 
     if (!isPasswordMatched) {

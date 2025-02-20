@@ -56,9 +56,9 @@ router.route('/request-bargain')
     .post(requestForBargain)
 
 router.route('/get-bargain-request')
-    .post( getBargainRequestsByShop)
+    .post(verifyJWT, getBargainRequestsByShop)
 
 router.route('/request-read/:id')
-    .put( markAsRead)
+    .put(verifyJWT, markAsRead)
 
 export default router;
