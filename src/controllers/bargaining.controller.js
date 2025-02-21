@@ -463,7 +463,7 @@ export const getBargainingDetails = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: bargainingDetails.length
+      data: bargainingDetails
     });
   } catch (error) {
     console.error("Error fetching bargaining details:", error);
