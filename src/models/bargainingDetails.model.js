@@ -6,16 +6,14 @@ const bargainingDetailsSchema = new mongoose.Schema(
     productId: { 
         type: String,
         required: true 
-    }, 
-    behavior: { 
-        type: String, 
-        enum: BARGAIN_BEHAVIOUR, 
-        required: true 
     },
     minPrice: { 
         type: Number, 
         required: true, 
         min: 0 
+    },
+    category: {
+        type: String
     },
     isActive:{
         type:Boolean

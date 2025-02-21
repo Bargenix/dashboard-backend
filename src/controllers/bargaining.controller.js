@@ -39,28 +39,30 @@ export const deactivateAllProducts = asyncHandler(async (req, res, next) => {
   const { reason } = req.body;
 
   if (!reason) {
-    return next(new ApiError(400, "Please provide a reason"));
+    return next(new ApiError(400, "Please provide category and reason"));
   }
-
   try {
-    const updateResult = await BargainingDetails.updateMany(
-      {}, // Remove user-based filtering
-      {
-        $set: {
-          isActive: false,
-          deactivationReason: reason,
-          deactivatedAt: new Date(),
-          minPrice: 0
-        }
-      }
+    // Find and update bargaining details in the database
+    const result = await BargainingDetails.updateMany(
+      { userId: req.user._id },
+      { $set: { isActive: false, deactivationReason: reason } }
     );
 
+    if (result.modifiedCount === 0) {
+      return next(new ApiError(404, "No active bargaining details found for this category"));
+    }
+
+    // Return success response
     res.status(200).json(
-      new ApiResponse(200, { modifiedCount: updateResult.modifiedCount }, "All products deactivated successfully")
+      new ApiResponse(200, {
+        message: `Bargaining disabled for ${result.modifiedCount} products`,
+        reason,
+      })
     );
   } catch (error) {
-    return next(new ApiError(500, "Failed to deactivate products"));
+    return next(new ApiError(500, `Error deactivating bargaining: ${error.message}`));
   }
+
 });
 
 
@@ -70,79 +72,41 @@ export const deactivateByCategory = asyncHandler(async (req, res, next) => {
   if (!category || !reason) {
     return next(new ApiError(400, "Please provide category and reason"));
   }
-
-  const shopify = await ShopifyDetails.findOne({ userId: req.user._id });
-  if (!shopify) return next(new ApiError(404, "Shopify Access is not provided"));
-
   try {
-    // First, get the collection ID for the category title
-    const collectionsUrl = `https://${shopify.shopifyShopName}.myshopify.com/admin/api/${shopify.apiVersion}/custom_collections.json`;
-    const collectionsResponse = await axios.get(collectionsUrl, {
-      headers: {
-        "X-Shopify-Access-Token": shopify.accessToken,
-        "Content-Type": "application/json",
-      },
-    });
-
-    const targetCollection = collectionsResponse.data.custom_collections.find(
-      collection => collection.title === category
+    // Find and update bargaining details in the database
+    const result = await BargainingDetails.updateMany(
+      { category, userId: req.user._id },
+      { $set: { isActive: false, deactivationReason: reason } }
     );
 
-    if (!targetCollection) {
-      return next(new ApiError(404, `Category not found: ${category}`));
+    if (result.modifiedCount === 0) {
+      return next(new ApiError(404, "No active bargaining details found for this category"));
     }
 
-    // Get all products in this collection
-    const collectionProductsUrl = `https://${shopify.shopifyShopName}.myshopify.com/admin/api/${shopify.apiVersion}/collections/${targetCollection.id}/products.json`;
-    const { data } = await axios.get(collectionProductsUrl, {
-      headers: {
-        "X-Shopify-Access-Token": shopify.accessToken,
-        "Content-Type": "application/json",
-      },
-    });
-
-    const productVariantIds = data.products.flatMap(product =>
-      product.variants.map(variant => variant.id)
-    );
-
-    if (productVariantIds.length === 0) {
-      return next(new ApiError(404, `No products found in category: ${category}`));
-    }
-
-    // Update bargaining details for all products in the category
-    await BargainingDetails.updateMany(
-      {
-        productId: { $in: productVariantIds },
-        userId: req.user._id
-      },
-      {
-        $set: {
-          isActive: false,
-          deactivationReason: reason,
-          deactivatedAt: new Date(),
-          minPrice: 0
-        }
-      }
-    );
-
+    // Return success response
     res.status(200).json(
-      new ApiResponse(200, { message: "Category products deactivated successfully" })
+      new ApiResponse(200, {
+        message: `Bargaining disabled for ${result.modifiedCount} products in category: ${category}`,
+        category,
+        reason,
+      })
     );
   } catch (error) {
-    console.error("Shopify API Error:", error.response?.data || error.message);
-    return next(new ApiError(500, "Failed to process category deactivation"));
+    return next(new ApiError(500, `Error deactivating bargaining: ${error.message}`));
   }
+
+  
 });
 
-
 export const setBargainingByCategory = asyncHandler(async (req, res, next) => {
-  const { category, behavior, minPrice } = req.body;
+  const { category, discount, startRange, endRange, noOfProducts } = req.body;
 
   // Validate input fields
-  if (!category || !behavior || minPrice === undefined) {
-    return next(new ApiError(400, "Please provide category, behavior, and minPrice"));
+  if (!category || discount === undefined || startRange === undefined || endRange === undefined || noOfProducts === undefined) {
+    return next(new ApiError(400, "Please provide category, discount, startRange, endRange, and noOfProducts"));
   }
 
+  // Find Shopify access details for the authenticated user
   const shopify = await ShopifyDetails.findOne({ userId: req.user._id });
   if (!shopify) return next(new ApiError(404, "Shopify Access is not provided"));
 
@@ -155,56 +119,64 @@ export const setBargainingByCategory = asyncHandler(async (req, res, next) => {
     },
   });
 
-  // Filter products by category
-  const categoryProducts = data.products.filter(
-    (product) => (product.product_type || "Uncategorized") === category
-  );
-
-  if (categoryProducts.length === 0) {
-    return next(new ApiError(404, `No products found in the category: ${category}`));
-  }
-
-  // Update or create bargaining details for each product variant in the category
-  for (const product of categoryProducts) {
-    for (const variant of product.variants) {
-      const existingBargainingDetail = await BargainingDetails.findOne({
-        productId: variant.id,
-        userId: req.user._id,
-      });
-
-      if (existingBargainingDetail) {
-        // Update existing bargaining detail
-        existingBargainingDetail.behavior = behavior;
-        existingBargainingDetail.minPrice = minPrice;
-        await existingBargainingDetail.save();
-      } else {
-        // Create a new bargaining detail
-        await BargainingDetails.create({
-          productId: variant.id,
-          behavior,
-          minPrice,
-          userId: req.user._id,
-        });
+  // Filter products by category and price range
+  let filteredProducts = [];
+  for (const product of data.products) {
+    if ((product.product_type || "Uncategorized") === category) {
+      for (const variant of product.variants) {
+        const variantPrice = parseFloat(variant.price);
+        if (variantPrice >= startRange && variantPrice <= endRange) {
+          filteredProducts.push(variant);
+        }
       }
     }
   }
 
+  if (filteredProducts.length === 0) {
+    return next(new ApiError(404, `No products found in category: ${category} within the given price range`));
+  }
+
+  // Limit the number of products
+  filteredProducts = filteredProducts.slice(0, noOfProducts);
+
+  // Apply bargaining settings
+  for (const variant of filteredProducts) {
+    const variantPrice = parseFloat(variant.price);
+    const minPrice = variantPrice - (variantPrice * discount) / 100; // Calculate discounted price
+
+    const existingBargainingDetail = await BargainingDetails.findOne({
+      productId: variant.id,
+      userId: req.user._id,
+    });
+
+    if (existingBargainingDetail) {
+      // Update existing bargaining detail
+      existingBargainingDetail.minPrice = minPrice;
+      existingBargainingDetail.isActive = true
+      await existingBargainingDetail.save();
+    } else {
+      // Create a new bargaining detail
+      await BargainingDetails.create({
+        productId: variant.id,
+        minPrice,
+        category,
+        isActive: true,
+        userId: req.user._id,
+      });
+    }
+  }
+
   res.status(201).json(
-    new ApiResponse(201, { message: "Bargaining details updated successfully" })
+    new ApiResponse(201, { message: "Bargaining details set for selected category products successfully" })
   );
 });
 
 export const setBargainingToAllProducts = asyncHandler(async (req, res, next) => {
-  const { behavior, minPrice } = req.body;
+  const { discount, startRange, endRange, noOfProducts } = req.body;
 
   // Validate input fields
-  if (!behavior || minPrice === undefined) {
-    return next(new ApiError(400, "Please provide behavior and minPrice"));
-  }
-
-  // Validate behavior
-  if (!BARGAIN_BEHAVIOUR.includes(behavior)) {
-    return next(new ApiError(400, "Invalid behavior provided"));
+  if (discount === undefined || startRange === undefined || endRange === undefined || noOfProducts === undefined) {
+    return next(new ApiError(400, "Please provide discount, startRange, endRange, and noOfProducts"));
   }
 
   // Find Shopify access details for the authenticated user
@@ -226,38 +198,62 @@ export const setBargainingToAllProducts = asyncHandler(async (req, res, next) =>
     return next(new ApiError(404, "No products found in the Shopify store"));
   }
 
-  // Process all products and their variants
+  // Filter products based on price range
+  let filteredProducts = [];
   for (const product of products) {
     for (const variant of product.variants) {
-      const existingBargainingDetail = await BargainingDetails.findOne({
-        productId: variant.id,
-        userId: req.user._id,
-      });
-
-      if (existingBargainingDetail) {
-        // Update existing bargaining detail
-        existingBargainingDetail.behavior = behavior;
-        existingBargainingDetail.minPrice = minPrice;
-        await existingBargainingDetail.save();
-      } else {
-        // Create a new bargaining detail
-        await BargainingDetails.create({
-          productId: variant.id,
-          behavior,
-          minPrice,
-          userId: req.user._id,
-        });
+      const variantPrice = parseFloat(variant.price);
+      if (variantPrice >= startRange && variantPrice <= endRange) {
+        let category = product.product_type
+        if(category === ""){
+          category = "Uncategorized"
+        }
+        filteredProducts.push({...variant,category});
       }
     }
   }
 
+  if (filteredProducts.length === 0) {
+    return next(new ApiError(404, "No products found within the given price range"));
+  }
+
+  // Limit the number of products
+  filteredProducts = filteredProducts.slice(0, noOfProducts);
+
+  // Apply bargaining settings
+  for (const variant of filteredProducts) {
+    const variantPrice = parseFloat(variant.price);
+    const minPrice = variantPrice - (variantPrice * discount) / 100; // Calculate discounted price
+
+    const existingBargainingDetail = await BargainingDetails.findOne({
+      productId: variant.id,
+      userId: req.user._id,
+    });
+
+    if (existingBargainingDetail) {
+      // Update existing bargaining detail
+      existingBargainingDetail.minPrice = minPrice;
+      existingBargainingDetail.isActive = true
+      await existingBargainingDetail.save();
+    } else {
+      // Create a new bargaining detail
+      await BargainingDetails.create({
+        productId: variant.id,
+        minPrice,
+        category : variant.category,
+        isActive: true,
+        userId: req.user._id,
+      });
+    }
+  }
+
   res.status(201).json(
-    new ApiResponse(201, { message: "Bargaining details set for all products successfully" })
+    new ApiResponse(201, { message: "Bargaining details set for selected products successfully" })
   );
-})
+});
 
 export const setBargainingByProduct = asyncHandler(async (req, res, next) => {
-  const { productId, behavior, minPrice } = req.body;
+  const { productId, minPrice } = req.body;
 
   // Validate input fields
   if (!productId || minPrice === undefined) {
@@ -294,9 +290,11 @@ export const setBargainingByProduct = asyncHandler(async (req, res, next) => {
         productTitle: product.title,
         variantTitle: variant.title,
         price: variant.price,
+        category: product.product_type,
         inventory_quantity: variant.inventory_quantity || 0,
       }))
     );
+    console.log(allVariants[0])
 
     // Check if the provided productId matches any variant
     const targetVariant = allVariants.find((variant) => variant.variantId.toString() === productId);
@@ -319,7 +317,7 @@ export const setBargainingByProduct = asyncHandler(async (req, res, next) => {
       // Create a new bargaining record
       bargainingRecord = new BargainingDetails({
         productId: targetVariant.variantId,
-        // behavior,
+        category: targetVariant.category,
         minPrice,
         userId: req.user._id,
       });
@@ -342,53 +340,85 @@ export const setBargainingByProduct = asyncHandler(async (req, res, next) => {
   }
 });
 
-
-export const setMinPrice = asyncHandler(async (req, res, next) => {
-  const { productId, minPrice } = req.body;
+export const setBargainingForSingleProduct = asyncHandler(async (req, res, next) => {
+  const { productId, discount } = req.body;
 
   // Validate input fields
-  if (!productId || minPrice === undefined) {
-    return next(new ApiError(400, "Please provide productId and minPrice"));
+  if (!productId || discount === undefined) {
+    return next(new ApiError(400, "Please provide productId and discount"));
   }
 
-  // Validate minPrice is a positive number
-  if (isNaN(minPrice) || minPrice < 0) {
-    return next(new ApiError(400, "Minimum price must be a positive number"));
-  }
+  // Find Shopify access details for the authenticated user
+  const shopify = await ShopifyDetails.findOne({ userId: req.user._id });
+  if (!shopify) return next(new ApiError(404, "Shopify Access is not provided"));
+
+  const url = `https://${shopify.shopifyShopName}.myshopify.com/admin/api/${shopify.apiVersion}/products.json`;
 
   try {
-    // Find and update the bargaining detail
-    const updatedBargainingDetail = await BargainingDetails.findOneAndUpdate(
-      { productId: productId },
-      {
-        $set: {
-          minPrice: minPrice,
-          isActive: true  // Set active when min price is set
-        }
+    // Fetch variant details from Shopify
+    const { data } = await axios.get(url, {
+      headers: {
+        "X-Shopify-Access-Token": shopify.accessToken,
+        "Content-Type": "application/json",
       },
-      { new: true }
-    );
+    });
 
-    if (!updatedBargainingDetail) {
-      return next(new ApiError(404, "No bargaining details found for this product"));
+    // Flatten all product variants into a single array, including product_type
+    const allVariants = data.products.flatMap((product) =>
+      product.variants.map((variant) => ({
+        productId: product.id,
+        variantId: variant.id,
+        productType: product.product_type || "Uncategorized",
+        productTitle: product.title,
+        variantTitle: variant.title,
+        price: variant.price,
+        category: product.product_type,
+        inventory_quantity: variant.inventory_quantity || 0,
+      }))
+    );
+    console.log(allVariants[0])
+
+    // Check if the provided productId matches any variant
+    const targetVariant = allVariants.find((variant) => variant.variantId.toString() === productId);
+    if (!targetVariant) {
+      return next(new ApiError(404, "Product variant not found"));
+    }
+
+    // Calculate discounted minPrice
+    const variantPrice = parseFloat(targetVariant.price);
+    const minPrice = variantPrice - (variantPrice * discount) / 100;
+
+    // Update or create bargaining detail for the variant
+    const existingBargainingDetail = await BargainingDetails.findOne({
+      productId: targetVariant.variantId,
+      userId: req.user._id,
+    });
+
+    if (existingBargainingDetail) {
+      // Update existing bargaining detail
+      existingBargainingDetail.minPrice = minPrice;
+      await existingBargainingDetail.save();
+    } else {
+      // Create a new bargaining detail
+      await BargainingDetails.create({
+        productId: targetVariant.variantId,
+        category: targetVariant.category,
+        minPrice,
+        isActive: true,
+        userId: req.user._id,
+      });
     }
 
     // Return success response
     res.status(200).json(
-      new ApiResponse(
-        200,
-        {
-          productId,
-          minPrice: updatedBargainingDetail.minPrice,
-          behavior: updatedBargainingDetail.behavior,
-          isActive: updatedBargainingDetail.isActive,
-          isAvailable: updatedBargainingDetail.isAvailable
-        },
-        "Minimum price updated successfully"
-      )
+      new ApiResponse(200, {
+        message: "Bargaining details updated for the variant successfully",
+        productId,
+        minPrice,
+      })
     );
   } catch (error) {
-    return next(new ApiError(500, `Error updating minimum price: ${error.message}`));
+    return next(new ApiError(500, `Error updating bargaining details: ${error.message}`));
   }
 });
 
@@ -404,7 +434,7 @@ export const deleteBargaining = asyncHandler(async (req, res, next) => {
     // Find and update
     const bargainingDetail = await BargainingDetails.findOneAndUpdate(
       { productId: productId },
-      { $set: { isActive: false, minPrice: 0 } }, // Update minPrice to 0
+      { $set: { isActive: false } }, // Update minPrice to 0
       { new: true }
     );
 
@@ -417,8 +447,7 @@ export const deleteBargaining = asyncHandler(async (req, res, next) => {
         200,
         {
           productId,
-          isActive: bargainingDetail.isActive,
-          minPrice: bargainingDetail.minPrice
+          isActive: bargainingDetail.isActive
         },
         "Bargaining detail marked as inactive and minPrice set to 0 successfully"
       )

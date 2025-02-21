@@ -4,7 +4,6 @@ import {
     setBargainingByCategory,
     setBargainingByProduct,
     setBargainingToAllProducts,
-    setMinPrice,
     deleteBargaining,
     getBargainingDetails,
     deactivateAllProducts,
@@ -14,7 +13,8 @@ import {
     requestForBargain,
     getBargainRequestsByShop,
     markAsRead,
-    getBargainInfo
+    getBargainInfo,
+    setBargainingForSingleProduct
 } from "../controllers/bargaining.controller.js";
 
 const router = Router();
@@ -29,7 +29,7 @@ router.route('/set-by-product')
     .post(verifyJWT, setBargainingByProduct);
 
 router.route('/set-min-price')
-    .post(verifyJWT, setMinPrice);
+    .post(verifyJWT, setBargainingForSingleProduct);
 
 router.route('/set-min-price-bulk')  // Add this new route
     .post(verifyJWT, setBulkMinPrice);
