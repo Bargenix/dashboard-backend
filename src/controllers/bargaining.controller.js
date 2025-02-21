@@ -459,11 +459,11 @@ export const deleteBargaining = asyncHandler(async (req, res, next) => {
 
 export const getBargainingDetails = async (req, res) => {
   try {
-    const bargainingDetails = await BargainingDetails.find({}, 'productId minPrice behavior isAvailable isActive');
+    const bargainingDetails = await BargainingDetails.find({userId : req.user._id});
 
     res.status(200).json({
       success: true,
-      data: bargainingDetails
+      data: bargainingDetails.length
     });
   } catch (error) {
     console.error("Error fetching bargaining details:", error);
